@@ -170,41 +170,6 @@ for word, i in vocab.items():
 
 
 # 构建Text-CNN模型
-
-
-# def TextCNN_model_2(x_train_padded_seqs, y_train, x_test_padded_seqs, y_test, embedding_matrix):
-#     # 模型结构：词嵌入-卷积池化*3-拼接-全连接-dropout-全连接
-#     main_input = Input(shape=(300,), dtype='float32')
-#     # 词嵌入（使用预训练的词向量）
-#     embedder = Embedding(len(vocab) + 1, 300, input_length=100, weights=[embedding_matrix], trainable=False)
-#     embed = embedder(main_input)
-#     # 词窗大小分别为3,4,5
-#     cnn1 = Conv1D(256, 3, padding='same', strides=1, activation='relu')(embed)
-#     cnn1 = MaxPooling1D(pool_size=38)(cnn1)
-#     cnn2 = Conv1D(256, 4, padding='same', strides=1, activation='relu')(embed)
-#     cnn2 = MaxPooling1D(pool_size=37)(cnn2)
-#     cnn3 = Conv1D(256, 5, padding='same', strides=1, activation='relu')(embed)
-#     cnn3 = MaxPooling1D(pool_size=36)(cnn3)
-#     # 合并三个模型的输出向量
-#     cnn = concatenate([cnn1, cnn2, cnn3], axis=-2)
-#     flat = Flatten()(cnn)
-#     drop = Dropout(0.2)(flat)
-#     main_output = Dense(5, activation='softmax')(drop)  # Dense此处units参数必须是标签数
-#     model = Model(inputs=main_input, outputs=main_output)
-#     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-#
-#     one_hot_labels = tf.keras.utils.to_categorical(y_train, num_classes=5)  # 将标签转换为one-hot编码
-#     model.fit(x_train_padded_seqs, one_hot_labels, batch_size=500, epochs=5)
-#     # y_test_onehot = keras.utils.to_categorical(y_test, num_classes=3)  # 将标签转换为one-hot编码
-#     result = model.predict(x_test_padded_seqs)  # 预测样本属于每个类别的概率
-#     result_labels = np.argmax(result, axis=1)  # 获得最大概率对应的标签
-#     y_predict = list(map(str, result_labels))
-#     print('准确率', accuracy_score(y_test, y_predict))
-#     print('平均f1-score:', f1_score(y_test, y_predict, average='wei'))
-#
-# TextCNN_model_2(x_train_padded_seqs, y_train, x_test_padded_seqs, y_test, embedding_matrix)
-
-
 # 模型结构：词嵌入-卷积池化*3-拼接-全连接-dropout-全连接
 main_input = Input(shape=(300,), dtype='float32')
 # 词嵌入（使用预训练的词向量）
@@ -235,44 +200,6 @@ y_predict = list(result_labels)
 y_test = list(y_test)
 print('准确率', accuracy_score(y_test, y_predict))
 print('平均f1-score:', f1_score(y_test, y_predict, average='weighted'))
-
-
-from tensorflow.keras.wrappers import scikit_learn
-from sklearn.model_selection import GridSearchCV
-
-
-def create_model():
-    # 模型结构：词嵌入-卷积池化*3-拼接-全连接-dropout-全连接
-    main_input = Input(shape=(300,), dtype='float32')
-    # 词嵌入（使用预训练的词向量）
-    embedder = Embedding(len(vocab) + 1, 300, input_length=100, weights=[embedding_matrix], trainable=False)
-    embed = embedder(main_input)
-    # 词窗大小分别为3,4,5
-    cnn1 = Conv1D(256, 3, padding='same', strides=1, activation='relu')(embed)
-    cnn1 = MaxPooling1D(pool_size=38)(cnn1)
-    cnn2 = Conv1D(256, 4, padding='same', strides=1, activation='relu')(embed)
-    cnn2 = MaxPooling1D(pool_size=37)(cnn2)
-    cnn3 = Conv1D(256, 5, padding='same', strides=1, activation='relu')(embed)
-    cnn3 = MaxPooling1D(pool_size=36)(cnn3)
-    # 合并三个模型的输出向量
-    cnn = concatenate([cnn1, cnn2, cnn3], axis=-2)
-    flat = Flatten()(cnn)
-    drop = Dropout(0.2)(flat)
-    main_output = Dense(5, activation='softmax')(drop)  # Dense此处units参数必须是标签数
-    model = Model(inputs=main_input, outputs=main_output)
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-    return model
-
-
-model = scikit_learn.KerasClassifier(build_fn=create_model, verbose=0)
-batch_size = [10, 30, 50, 100, 300, 500, 1000]
-epochs = [5, 7, 10, 20, 50, 100, 200]
-param_grid = dict(batch_size=batch_size, epochs=epochs)
-grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=1)
-grid_result = grid.fit(x_train_padded_seqs, one_hot_labels)
-print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
-for params, mean_score, scores in grid_result.grid_scores_:
-    print("%f (%f) with: %r" % (scores.mean(), scores.std(), params))
 
 
 
@@ -309,6 +236,4 @@ from tensorflow.keras.utils import plot_model
 # print(s1.sentiments, s2.sentiments)
 
 
-
-print()
 
