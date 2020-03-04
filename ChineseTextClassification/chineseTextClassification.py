@@ -201,7 +201,35 @@ y_test = list(y_test)
 print('准确率', accuracy_score(y_test, y_predict))
 print('平均f1-score:', f1_score(y_test, y_predict, average='weighted'))
 
+# LSTM 模型
+from keras.layers import LSTM
+from keras.optimizers import RMSprop
+from keras.callbacks import EarlyStopping
 
+
+# 定义LSTM模型
+lstm_inputs = Input(name='inputs', shape=[400])
+# Embedding(词汇表大小, batch大小,每条评论的词长)
+layer = Embedding(len(vocab) + 1, 100, input_length=400)(lstm_inputs)
+layer = LSTM(100)(layer)
+layer = Dense(100, activation='relu', name='FC1')(layer)
+layer = Dropout(0.5)(layer)
+layer = Dense(2, activation='softmax', name='FC2')(layer)
+lstm_model = Model(inputs=lstm_inputs, outputs=layer)
+lstm_model.summary()
+lstm_model.compile(loss='categorical_crossentropy', optimizer=RMSprop(), metrics=['accuracy'])
+lstm_model_fit = lstm_model.fit(x_train_padded_seqs, one_hot_labels, batch_size=800, epochs=10,
+                                callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.0001)])
+test_pre = lstm_model.predict(x_test_padded_seqs)
+confm = accuracy_score(list(np.argmax(test_pre, axis=1)), y_test)
+print('================LSTM算法=================')
+print("LSTM模型准确率:", confm)
+
+
+# 机器学习
+vect = CountVectorizer(max_df=0.8, min_df=3, token_pattern=u'(?u)\\b[^\\d\\W]\\w+\\b', stop_words=frozenset(stopwords))
+test = pd.DataFrame(vect.fit_transform(X_train).toarray(), columns=vect.get_feature_names())
+test.head()
 
 # import os
 #
