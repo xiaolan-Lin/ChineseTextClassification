@@ -21,33 +21,51 @@ data = data.drop(
     axis=1)  # 删除多余的列，剩下评论内容、评分均值两列
 # （3）打标签——情绪
 data['score'].unique()  # 查看评分有多少种（0~4，5种），此处直接用于标签分类
-# # SNOWNLP——利用中文分类库SnowNLP对情绪进行评估
-# from snownlp import SnowNLP
-#
-#
-# def snow_result(Content_review):
-#     s = SnowNLP(Content_review)
-#     if s.sentiments < 0.2:
-#         return 0
-#     elif (s.sentiments >= 0.2) & (s.sentiments < 0.3):
-#         return 1
-#     elif (s.sentiments >= 0.3) & (s.sentiments < 0.7):
-#         return 2
-#     elif (s.sentiments >= 0.7) & (s.sentiments < 0.8):
-#         return 3
-#     elif (s.sentiments >= 0.8) & (s.sentiments <= 1.0):
-#         return 4
-#
-#
-# data['Content_review'] = data['Content_review'].astype(str)  # 将Content_review列种参杂了其他类型的列值全部转换为str类型，才可进行下一步操作
-# data['snlp_result'] = data.Content_review.apply(snow_result)
-# # 评价分均值与调库出来情绪的得分比较后的准确率
-# counts = 0
-# for i in range(len(data)):
-#     if data.iloc[i, 2] == data.iloc[i, 3]:
-#         counts += 1
-#
-# print(counts / len(data))  # 0.41632196255582493
+
+# 将情绪分为积极与消极,让评分均值小于2的为消极（0），大于2的就是积极（1）
+
+
+def make_label(score):
+    if score > 2:
+        return 1
+    else:
+        return 0
+
+
+data['sentiment'] = data.score.apply(make_label)
+
+
+# SnowNLP
+# 利用中文分类库SnowNLP对情绪进行评估
+from snownlp import SnowNLP
+
+
+def snow_result(content_review):
+    s = SnowNLP(content_review)
+    if s.sentiments >= 0.6:
+        return 1
+    else:
+        return 0
+
+
+data['Content_review'] = data['Content_review'].astype(str)  # 将Content_review列种参杂了其他类型的列值全部转换为str类型，才可进行下一步操作
+data['snlp_result'] = data.Content_review.apply(snow_result)
+# 评价分均值与调库出来情绪的得分比较后的准确率
+counts = 0
+for i in range(len(data)):
+    if data.iloc[i, 3] == data.iloc[i, 4]:
+        counts += 1
+
+print(counts / len(data))  # 0.6954520456485965
+
+# 测试
+text1 = '这个东西很不错'
+text2 = '这个东西很垃圾'
+
+s1 = SnowNLP(text1)
+s2 = SnowNLP(text2)
+
+print(s1.sentiments, s2.sentiments)
 
 # jieba分词
 import jieba
@@ -106,7 +124,7 @@ import time
 
 start = time.process_time()
 sentences = word2vec.LineSentence('filter_data.txt')
-model = word2vec.Word2Vec(sentences, size=300, workers=6, sg=1)
+model = word2vec.Word2Vec(sentences, size=100, workers=6, sg=1)
 end = time.process_time()
 print('Running time: %s Seconds' % (end - start))
 # 模型保存加载方式
@@ -136,11 +154,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score
 # 隐含层所需要用到的函数，其中Convolution2D是卷积层；Activation是激活函数；MaxPooling2D作为池化层；
 # Flatten是起到将多维输入易卫华的函数；Dense是全连接层
-from tensorflow.keras.layers import MaxPooling1D, Flatten, Dense, Input, Dropout, Embedding, Conv1D
-from tensorflow.keras import Model
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.layers import concatenate
+from keras.layers import MaxPooling1D, Flatten, Dense, Input, Dropout, Embedding, Conv1D
+from keras import Model
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
+from keras.layers import concatenate
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 tokenizer = Tokenizer()  # 创建一个Tokenizer对象
@@ -149,19 +167,19 @@ vocab = tokenizer.word_index
 
 # 划分数据集
 X = data['cut_comment']
-y = data['score']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=22)
+y = data['sentiment']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=22)
 
 # 将每个样本中的每个词转换为数字列表，使用每个词的编号进行编号
 x_train_word_ids = tokenizer.texts_to_sequences(X_train)
 x_test_word_ids = tokenizer.texts_to_sequences(X_test)
 # 序列模式
 # 每条样本长度不唯一，将每条样本的长度设置一个固定值
-x_train_padded_seqs = pad_sequences(x_train_word_ids, maxlen=300)  # 将超过固定值的部分截掉，不足的在最前面用0填充,(373847, 300)
-x_test_padded_seqs = pad_sequences(x_test_word_ids, maxlen=300)
+x_train_padded_seqs = pad_sequences(x_train_word_ids, maxlen=400)  # 将超过固定值的部分截掉，不足的在最前面用0填充,(373847, 100)
+x_test_padded_seqs = pad_sequences(x_test_word_ids, maxlen=400)
 
 # 预训练的词向量中没有出现的词用0向量表示
-embedding_matrix = np.zeros((len(vocab) + 1, 300), dtype='float32')
+embedding_matrix = np.zeros((len(vocab) + 1, 100), dtype='float32')
 for word, i in vocab.items():
     try:
         embedding_vector = w2v_model[str(word)]
@@ -172,9 +190,9 @@ for word, i in vocab.items():
 
 # 构建Text-CNN模型
 # 模型结构：词嵌入-卷积池化*3-拼接-全连接-dropout-全连接
-main_input = Input(shape=(300,), dtype='float32')
+main_input = Input(shape=(400,), dtype='float32')
 # 词嵌入（使用预训练的词向量）
-embedder = Embedding(len(vocab) + 1, 300, input_length=100, weights=[embedding_matrix], trainable=False)
+embedder = Embedding(len(vocab) + 1, 100, input_length=400, weights=[embedding_matrix], trainable=False)
 embed = embedder(main_input)
 # 词窗大小分别为3,4,5
 cnn1 = Conv1D(256, 3, padding='same', strides=1, activation='relu')(embed)
@@ -186,20 +204,27 @@ cnn3 = MaxPooling1D(pool_size=36)(cnn3)
 # 合并三个模型的输出向量
 cnn = concatenate([cnn1, cnn2, cnn3], axis=-2)
 flat = Flatten()(cnn)
-drop = Dropout(0.2)(flat)
-main_output = Dense(5, activation='softmax')(drop)  # Dense此处units参数必须是标签数
+drop = Dropout(0.4)(flat)
+main_output = Dense(2, activation='softmax')(drop)  # Dense此处units参数必须是标签数
 model = Model(inputs=main_input, outputs=main_output)
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-one_hot_labels = tf.keras.utils.to_categorical(y_train, num_classes=5)  # 将标签转换为one-hot编码
-model.fit(x_train_padded_seqs, one_hot_labels, batch_size=900, epochs=5)
-# y_test_onehot = keras.utils.to_categorical(y_test, num_classes=3)  # 将标签转换为one-hot编码
+one_hot_labels = tf.keras.utils.to_categorical(y_train, num_classes=2)  # 将标签转换为one-hot编码
+model.fit(x_train_padded_seqs, one_hot_labels, batch_size=900, epochs=8)
+# y_test_onehot = tf.keras.utils.to_categorical(y_test, num_classes=5)  # 将标签转换为one-hot编码
 result = model.predict(x_test_padded_seqs)  # 预测样本属于每个类别的概率
 result_labels = np.argmax(result, axis=1)  # 获得最大概率对应的标签
 # y_predict = list(map(str, result_labels))
+# y_test_onehot = np.argmax(y_test_onehot, axis=1)
+print('==============Text-CNN算法===============')
+# result1 = model.predict(x_train_padded_seqs)
+# result1_labels = np.argmax(result1, axis=1)
+# pre = list(result1_labels)
+# y_train1 = list(y_train)
+# print('准确率', accuracy_score(y_train1, pre))
 y_predict = list(result_labels)
 y_test = list(y_test)
-print('准确率', accuracy_score(y_test, y_predict))
+print('Text-CNN模型准确率:', accuracy_score(y_test, y_predict))
 print('平均f1-score:', f1_score(y_test, y_predict, average='weighted'))
 
 # LSTM 模型
@@ -232,37 +257,31 @@ vect = CountVectorizer(max_df=0.8, min_df=3, token_pattern=u'(?u)\\b[^\\d\\W]\\w
 test = pd.DataFrame(vect.fit_transform(X_train).toarray(), columns=vect.get_feature_names())
 test.head()
 
-# import os
-#
-# os.environ["PATH"] += os.pathsep + 'D:\\Program Files (x86)\\Graphviz2.38\\bin'
-# 绘制模型图
-from tensorflow.keras.utils import plot_model
+# 朴素贝叶斯模型
+from sklearn.naive_bayes import MultinomialNB
 
-# vect = CountVectorizer(max_df=0.8, min_df=3, token_pattern=u'(?u)\\b[^\\d\\W]\\w+\\b', stop_words=frozenset(stopwords))
-# # test = pd.DataFrame(vect.fit_transform(X_train).toarray(), columns=vect.get_feature_names())
-# # test.head()
-#
-# # 朴素贝叶斯
-# # 训练模型
-# from sklearn.naive_bayes import MultinomialNB
-# nb = MultinomialNB()
-#
-# X_train_vect = vect.fit_transform(X_train)
-# nb.fit(X_train_vect, y_train)
-# train_score = nb.score(X_train_vect, y_train)
-# print(train_score)  # 0.6476339251084
-# # 测试模型
-# X_test_vect = vect.transform(X_test)
-# print(nb.score(X_test_vect, y_test))  # 0.6044167683122552
+nb = MultinomialNB()
+X_train_vect = vect.fit_transform(X_train)
+nb.fit(X_train_vect, y_train)
+train_score = nb.score(X_train_vect, y_train)
+print('==============朴素贝叶斯算法==============')
+# print('朴素贝叶斯模型的准确率:', train_score)  # 0.8651801405387766
+# 测试模型
+X_test_vect = vect.transform(X_test)
+print('朴素贝叶斯模型的准确率:', nb.score(X_test_vect, y_test))  # 0.8548287004344012
 
 
-# text1 = '这个东西很不错'
-# text2 = '这个东西很垃圾'
-#
-# s1 = SnowNLP(text1)
-# s2 = SnowNLP(text2)
-#
-# print(s1.sentiments, s2.sentiments)
+# KNN模型
+from sklearn.neighbors import KNeighborsClassifier
 
+knn_model = KNeighborsClassifier()  # 取得KNN分类器
+x_train_vect = vect.fit_transform(X_train)
+knn_model.fit(x_train_vect, y_train)
+# knn_train_score = knn_model.score(x_train_vect, y_train)
+print('=================KNN算法=================')
+# print('KNN训练模型的准确率:', knn_train_score)
+# 测试模型
+x_test_vect = vect.transform(X_test)
+print('KNN模型的准确率:', knn_model.score(x_test_vect, y_test))
 
 
