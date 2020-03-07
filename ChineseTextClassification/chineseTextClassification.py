@@ -121,6 +121,7 @@ model.wv.save_word2vec_format('word2vec.vector')
 print(model)
 # print('.model load time %.4f')
 # model.wv.save_word2vec_format('word2vec.bin')
+
 # 测试词向量模型
 # y2 = model.wv.similarity(u"棒", u"好")
 # print(y2)
